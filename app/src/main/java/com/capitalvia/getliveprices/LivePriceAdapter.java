@@ -2,6 +2,7 @@ package com.capitalvia.getliveprices;
 
 import android.content.Context;
 import android.support.v7.widget.RecyclerView;
+import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -20,6 +21,13 @@ public class LivePriceAdapter extends RecyclerView.Adapter<LivePriceAdapter.Live
     LivePriceAdapter(Context context, List<LivePrice> mLivePriceList) {
         this.context = context;
         this.mLivePriceList = mLivePriceList;
+    }
+
+    public void refreshList(List<LivePrice> livePriceList) {
+        this.mLivePriceList.clear();
+        this.mLivePriceList = livePriceList;
+        Log.d("check", "is called" + mLivePriceList.get(0).getLast_updated_time());
+        notifyDataSetChanged();
     }
 
     @Override
