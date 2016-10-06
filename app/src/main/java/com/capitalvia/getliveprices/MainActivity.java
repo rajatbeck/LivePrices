@@ -21,6 +21,9 @@ import org.json.JSONObject;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 
 public class MainActivity extends AppCompatActivity implements ResponseInterface, LivePriceUpdateService.CallBack {
 
@@ -34,6 +37,19 @@ public class MainActivity extends AppCompatActivity implements ResponseInterface
     private Intent intent;
     private PendingIntent pi;
     private LivePriceAdapter livePriceAdapter;
+    private ScheduledExecutorService scheduledExecutorService;
+
+    class RunUpdate implements Runnable {
+
+        @Override
+        public void run() {
+            intent = new Intent(MainActivity.this, LivePriceUpdateService.class);
+            intent.putExtra("script_name", scripts);
+//            pi = PendingIntent.getService(MainActivity.this, 0, intent, 0);
+            startService(intent);
+            Log.d(TAG, "runnable is called");
+        }
+    }
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -51,7 +67,6 @@ public class MainActivity extends AppCompatActivity implements ResponseInterface
         String replaceComment = response.replace("//", "");
         Log.d(TAG, replaceComment);
         try {
-
             JSONArray jsonArray = new JSONArray(replaceComment);
             if (jsonArray.length() != 0) {
                 for (int i = 0; i < jsonArray.length(); i++) {
@@ -91,7 +106,11 @@ public class MainActivity extends AppCompatActivity implements ResponseInterface
     @Override
     protected void onStart() {
         super.onStart();
-        SetAlarm(MainActivity.this);
+//        SetAlarm(MainActivity.this);
+        intent = new Intent(getApplicationContext(), LivePriceUpdateService.class);
+        intent.putExtra("script_name", scripts);
+//        pi = PendingIntent.getService(getApplicationContext(), 0, intent, 0);
+        startExecutor();
         bindService(intent, mServiceConnection, Context.BIND_AUTO_CREATE);
     }
 
@@ -101,8 +120,9 @@ public class MainActivity extends AppCompatActivity implements ResponseInterface
         if (livePriceUpdateServiceBound) {
             unbindService(mServiceConnection);
             livePriceUpdateServiceBound = false;
-            CancelAlarm(getApplicationContext());
+            // CancelAlarm(getApplicationContext());
         }
+        scheduledExecutorService.shutdownNow();
     }
 
     public void SetAlarm(Context context) {
@@ -137,11 +157,20 @@ public class MainActivity extends AppCompatActivity implements ResponseInterface
                     mLivePriceList.add(livePrice);
                 }
             }
-            Log.d(TAG, mLivePriceList.get(0).getLast_updated_time());
-            livePriceAdapter.refreshList(mLivePriceList);
+            if (livePriceAdapter != null)
+                livePriceAdapter.refreshList(mLivePriceList);
+            else {
+                livePriceAdapter = new LivePriceAdapter(getApplicationContext(), mLivePriceList);
+                mRecyclerView.setAdapter(livePriceAdapter);
+            }
 
         } catch (JSONException e) {
             e.printStackTrace();
         }
+    }
+
+    public void startExecutor() {
+        scheduledExecutorService = Executors.newScheduledThreadPool(5);
+        scheduledExecutorService.scheduleWithFixedDelay(new RunUpdate(), 5, 5, TimeUnit.SECONDS);
     }
 }
